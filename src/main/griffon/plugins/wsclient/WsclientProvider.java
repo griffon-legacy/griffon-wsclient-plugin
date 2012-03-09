@@ -1,5 +1,5 @@
 /*
- * Copyright 2009-2011 the original author or authors.
+ * Copyright 2012 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -10,17 +10,21 @@
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
+ * See the License for the specific language governing pewsclientssions and
  * limitations under the License.
  */
+
+package griffon.plugins.wsclient;
+
+import java.util.Map;
+import groovy.lang.Closure;
+import griffon.util.CallableWithArgs;
 
 /**
  * @author Andres Almiray
  */
-
-// check to see if we already have a WsclientGriffonAddon
-configText = '''root.'WsclientGriffonAddon'.addon=true'''
-if(builderConfigFile.text.contains(configText)) {
-    println 'Removing WsclientGriffonAddon from Builder.groovy'
-    builderConfigFile.text -= configText
+public interface WsclientProvider {
+    Object withWs(Map params, Closure closure);
+    
+    <T> T withWs(Map params, CallableWithArgs<T> callable);
 }
