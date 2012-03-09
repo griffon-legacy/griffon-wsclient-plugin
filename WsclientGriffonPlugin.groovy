@@ -61,7 +61,7 @@ Where params may contain
 
 | *Property*  | *Type*      | *Required* | *Notes*                                          |
 | ----------- | ----------- | ---------- | ------------------------------------------------ |
-| wsdl        | String      | yes        | WSDL location |                                  |
+| wsdl        | String      | yes        | WSDL location                                    |
 | soapVersion | String      | no         | either "1.1" or "1.2". Defaults to "1.1"         |
 | classLoader | ClassLoader | no         | classloader used for proxies classes             |
 | timeout     | long        | no         |                                                  |
