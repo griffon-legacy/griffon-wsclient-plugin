@@ -123,7 +123,7 @@ change this setting by adding a configuration flag in `griffon-app/conf/Config.g
 
     griffon.ws.injectInto = ['controller', 'service']
 
-Dynamic method injection wil skipped for classes implementing
+Dynamic method injection will be skipped for classes implementing
 `griffon.plugins.wsclient.WsclientContributionHandler`.
 
 ### Example
