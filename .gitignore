@@ -1,1 +1,6 @@
 target
+.idea
+release_notes.md
+wsclient-griffonPluginFixes.iml
+wsclient-griffonPlugins.iml
+wsclient.iml

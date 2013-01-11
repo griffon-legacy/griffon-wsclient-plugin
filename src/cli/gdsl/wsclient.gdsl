@@ -14,18 +14,12 @@
  * limitations under the License.
  */
 
-package griffon.plugins.wsclient;
-
-import griffon.util.CallableWithArgs;
-import groovy.lang.Closure;
-
-import java.util.Map;
+package gdsl
 
 /**
  * @author Andres Almiray
  */
-public interface WsclientProvider {
-    <R> R withWs(Map<String, Object> params, Closure<R> closure);
 
-    <R> R withWs(Map<String, Object> params, CallableWithArgs<R> callable);
+contributor(scope: annotatedScope(ctype: 'griffon.plugins.wsclient.WsclientAware')) {
+    delegatesTo(findClass('griffon.plugins.wsclient.WsclientContributionHandler'))
 }

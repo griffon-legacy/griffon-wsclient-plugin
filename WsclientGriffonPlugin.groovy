@@ -1,5 +1,5 @@
 /*
- * Copyright 2009-2011 the original author or authors.
+ * Copyright 2009-2013 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the 'License');
  * you may not use this file except in compliance with the License.
@@ -19,11 +19,11 @@
  */
 class WsclientGriffonPlugin {
     // the plugin version
-    String version = '0.6'
+    String version = '1.0.0'
     // the version or versions of Griffon the plugin is designed for
-    String griffonVersion = '0.9.5 > *'
+    String griffonVersion = '1.2.0 > *'
     // the other plugins this plugin depends on
-    Map dependsOn = [:]
+    Map dependsOn = [lombok: '0.4']
     // resources that are included in plugin packaging
     List pluginIncludes = []
     // the plugin license
@@ -49,13 +49,17 @@ class WsclientGriffonPlugin {
     String title = 'Dynamic WS client & libraries'
 
     String description = '''
-The Wsclient plugin adds a remoting client capable of communicating via SOAP. It is compatible with [Grails' Xfire plugin 0.8.1][1].
+The Wsclient plugin adds a remoting client capable of communicating via SOAP.
+It is compatible with [Grails' Xfire plugin 0.8.3][1].
 
 Usage
 -----
 The plugin will inject the following dynamic methods:
 
-* `withWs(Map params, Closure stmts)` - executes stmts issuing SOAP calls to a remote server.
+ * `<R> R withWs(Map<String, Object> params, Closure<R> stmts)` - executes stmts
+   using a WSClient
+ * `<R> R withWs(Map<String, Object> params, CallableWithArgs<R> stmts)` - executes
+   stmts using a WSClient
 
 Where params may contain
 
@@ -70,7 +74,8 @@ Where params may contain
 | proxy       | Map         | no         | proxy settings                                   |
 | ssl         | Map         | no         | ssl settings                                     |
 
-Keys for both `proxy` and `ssl` must match values from `groovyx.net.ws.cxf.SettingsConstants` reproduced here for your convenience
+Keys for both `proxy` and `ssl` must match values from
+`groovyx.net.ws.cxf.SettingsConstants` reproduced here for your convenience
 
     /** Http proxy user */
     public static final String HTTP_PROXY_USER = "http.proxy.user";
@@ -93,26 +98,38 @@ Keys for both `proxy` and `ssl` must match values from `groovyx.net.ws.cxf.Setti
     /** Http basic authentication password */
     public static final String HTTP_PASSWORD = "http.password";
 
-All dynamic methods will create a new client when invoked unless you define an `id:` attribute.
-When this attribute is supplied the client will be stored in a cache managed by the `WsclientProvider` that
-handled the call.
+All dynamic methods will create a new client when invoked unless you define an
+`id:` attribute. When this attribute is supplied the client will be stored in
+a cache managed by the `WsclientProvider` that handled the call.
 
-These methods are also accessible to any component through the singleton `griffon.plugins.wsclient.WsclientEnhancer`.
-You can inject these methods to non-artifacts via metaclasses. Simply grab hold of a particular metaclass and call
-`WsclientEnhancer.enhance(metaClassInstance)`.
+These methods are also accessible to any component through the singleton
+`griffon.plugins.wsclient.WsclientEnhancer`. You can inject these methods to
+non-artifacts via metaclasses. Simply grab hold of a particular metaclass and
+call `WsclientEnhancer.enhance(metaClassInstance)`.
 
 Configuration
 -------------
-### Dynamic method injection
+### WsclientAware AST Transformation
+
+The preferred way to mark a class for method injection is by annotating it with
+`@griffon.plugins.wsclient.WsclientAware`. This transformation injects the
+`griffon.plugins.wsclient.WsclientContributionHandler` interface and default behavior
+that fulfills the contract.
+
+### Dynamic Method Injection
 
 Dynamic methods will be added to controllers by default. You can
 change this setting by adding a configuration flag in `griffon-app/conf/Config.groovy`
 
     griffon.ws.injectInto = ['controller', 'service']
 
+Dynamic method injection wil skipped for classes implementing
+`griffon.plugins.wsclient.WsclientContributionHandler`.
+
 ### Example
 
-This example relies on [Grails][2] as the service provider. Follow these steps to configure the service on the Grails side:
+This example relies on [Grails][2] as the service provider. Follow these steps
+to configure the service on the Grails side:
 
 1. Download a copy of [Grails][3] and install it.
 2. Create a new Grails application. We'll pick 'exporter' as the application name.
@@ -126,14 +143,14 @@ This example relies on [Grails][2] as the service provider. Follow these steps t
 4. Create an implementation of the `Calculator` interface as a service
 
         grails create-service calculator
-    
+
 5. Paste the following code in `grails-app/services/exporter/CalculatorService.groovy`
 
         package exporter
         class CalculatorService {
             boolean transactional = false
             static expose = ['xfire']
- 
+        
             double add(double a, double b){
                 println "add($a, $b)" // good old println() for quick debugging
                 return a + b
@@ -143,7 +160,7 @@ This example relies on [Grails][2] as the service provider. Follow these steps t
 6. Run the application
 
         grails run-app
-    
+
 Now we're ready to build the Griffon application
 
 1. Create a new Griffon application. We'll pick `calculator` as the application name
@@ -189,6 +206,7 @@ Now we're ready to build the Griffon application
 types something that is not a number the client will surely break, but the code is sufficient for now.
 
         package calculator
+        @griffon.plugins.wsclient.WsclientAware
         class CalculatorController {
             def model
  
@@ -206,28 +224,85 @@ types something that is not a number the client will surely break, but the code 
                 }
             }
         }
-    
+
 6. Run the application
 
         griffon run-app
 
-Testing
--------
-Dynamic methods will not be automatically injected during unit testing, because addons are simply not initialized
-for this kind of tests. However you can use `WsclientEnhancer.enhance(metaClassInstance, rmiProviderInstance)` where 
-`rmiProviderInstance` is of type `griffon.plugins.rmi.WsclientProvider`. The contract for this interface looks like this
+The plugin exposes a Java friendly API to make the exact same calls from Java,
+or any other JVM language for that matter. Here's for example the previous code
+rewritten in Java. Note the usage of @WsclientWare on a Java class
 
-    public interface WsclientProvider {
-        Object withWs(Map params, Closure closure);
-        <T> T withWs(Map params, CallableWithArgs<T> callable);
+    package calculator;
+    import griffon.util.CallableWithArgs;
+    import griffon.util.CollectionUtils;
+    import java.awt.event.ActionEvent;
+    import java.util.Map;
+    import groovyx.net.ws.WSClient;
+    import org.codehaus.griffon.runtime.core.AbstractGriffonController;
+    @griffon.plugins.wsclient.WsclientAware
+    public class CalculatorController extends AbstractGriffonController {
+        private CalculatorModel model;
+    
+        public void setModel(CalculatorModel model) {
+            this.model = model;
+        }
+    
+        public void calculate(ActionEvent event) {
+            final double a = Double.parseDouble(model.getNum1());
+            final double b = Double.parseDouble(model.getNum2());
+            enableModel(false);
+            try {
+                Map<String, Object> params = CollectionUtils.<String, Object> map()
+                    .e("wsdl", "http://localhost:8080/exporter/services/calculator?wsdl");
+                final Double result = withWs(params,
+                    new CallableWithArgs<Double>() {
+                        public Double call(Object[] args) {
+                            WSClient client = (WSClient) args[0];
+                            Number n = (Number) client.invokeMethod("add", new Object[] { a, b });
+                            return n.doubleValue();
+                        }
+                    });
+                execInsideUIAsync(new Runnable() {
+                    public void run() {
+                        model.setResult(String.valueOf(result));
+                    }
+                });
+            } finally {
+                enableModel(true);
+            }
+        }
+    
+        private void enableModel(final boolean enabled) {
+            execInsideUIAsync(new Runnable() {
+                public void run() {
+                    model.setEnabled(enabled);
+                }
+            });
+        }
     }
 
-It's up to you define how these methods need to be implemented for your tests. For example, here's an implementation that never
-fails regardless of the arguments it receives
+Testing
+-------
+
+Dynamic methods will not be automatically injected during unit testing, because
+addons are simply not initialized for this kind of tests. However you can use
+`WsclientEnhancer.enhance(metaClassInstance, wsclientProviderInstance)` where
+`wsclientProviderInstance` is of type `griffon.plugins.wsclient.WsclientProvider`.
+The contract for this interface looks like this
+
+    public interface WsclientProvider {
+        <R> R withWs(Map<String, Object> params, Closure<R> closure);
+        <R> R withWs(Map<String, Object> params, CallableWithArgs<R> callable);
+    }
+
+It's up to you define how these methods need to be implemented for your tests.
+For example, here's an implementation that never fails regardless of the
+arguments it receives
 
     class MyWsclientProvider implements WsclientProvider {
-        Object withWs(Map params, Closure closure) { null }
-        public <T> T withWs(Map params, CallableWithArgs<T> callable) { null }
+        public <R> R withWs(Map<String, Object> params, Closure<R> closure) { null }
+        public <R> R withWs(Map<String, Object> params, CallableWithArgs<R> callable) { null }
     }
     
 This implementation may be used in the following way
@@ -240,9 +315,96 @@ This implementation may be used in the following way
         }
     }
 
+On the other hand, if the service is annotated with `@WsclientAware` then usage
+of `WsclientEnhancer` should be avoided at all costs. Simply set
+`wsclientProviderInstance` on the service instance directly, like so, first the
+service definition
 
-[1]: http://grails.org/plugin/xfire
+    @griffon.plugins.wsclient.WsclientAware
+    class MyService {
+        def serviceMethod() { ... }
+    }
+
+Next is the test
+
+    class MyServiceTests extends GriffonUnitTestCase {
+        void testSmokeAndMirrors() {
+            MyService service = new MyService()
+            service.wsclientProvider = new MyWsclientProvider()
+            // exercise service methods
+        }
+    }
+
+Tool Support
+------------
+
+### DSL Descriptors
+
+This plugin provides DSL descriptors for Intellij IDEA and Eclipse (provided
+you have the Groovy Eclipse plugin installed). These descriptors are found
+inside the `griffon-wsclient-compile-x.y.z.jar`, with locations
+
+ * dsdl/wsclient.dsld
+ * gdsl/wsclient.gdsl
+
+### Lombok Support
+
+Rewriting Java AST in a similar fashion to Groovy AST transformations is
+possible thanks to the [lombok][4] plugin.
+
+#### JavaC
+
+Support for this compiler is provided out-of-the-box by the command line tools.
+There's no additional configuration required.
+
+#### Eclipse
+
+Follow the steps found in the [Lombok][4] plugin for setting up Eclipse up to
+number 5.
+
+ 6. Go to the path where the `lombok.jar` was copied. This path is either found
+    inside the Eclipse installation directory or in your local settings. Copy
+    the following file from the project's working directory
+
+         $ cp $USER_HOME/.griffon/<version>/projects/<project>/plugins/wsclient-<version>/dist/griffon-wsclient-compile-<version>.jar .
+
+ 6. Edit the launch script for Eclipse and tweak the boothclasspath entry so
+    that includes the file you just copied
+
+        -Xbootclasspath/a:lombok.jar:lombok-pg-<version>.jar:\
+        griffon-lombok-compile-<version>.jar:griffon-wsclient-compile-<version>.jar
+
+ 7. Launch Eclipse once more. Eclipse should be able to provide content assist
+    for Java classes annotated with `@WsclientAware`.
+
+#### NetBeans
+
+Follow the instructions found in [Annotation Processors Support in the NetBeans
+IDE, Part I: Using Project Lombok][5]. You may need to specify
+`lombok.core.AnnotationProcessor` in the list of Annotation Processors.
+
+NetBeans should be able to provide code suggestions on Java classes annotated
+with `@WsclientAware`.
+
+#### Intellij IDEA
+
+Follow the steps found in the [Lombok][4] plugin for setting up Intellij IDEA
+up to number 5.
+
+ 6. Copy `griffon-wsclient-compile-<version>.jar` to the `lib` directory
+
+         $ pwd
+           $USER_HOME/Library/Application Support/IntelliJIdea11/lombok-plugin
+         $ cp $USER_HOME/.griffon/<version>/projects/<project>/plugins/wsclient-<version>/dist/griffon-wsclient-compile-<version>.jar lib
+
+ 7. Launch IntelliJ IDEA once more. Code completion should work now for Java
+    classes annotated with `@WsclientAware`.
+
+
+[1]: http://grails.org/plugin/wsclient
 [2]: http://grails.org
 [3]: http://grails.org/Download
+[4]: /plugin/lombok
+[5]: http://netbeans.org/kb/docs/java/annotations-lombok.html
 '''
 }

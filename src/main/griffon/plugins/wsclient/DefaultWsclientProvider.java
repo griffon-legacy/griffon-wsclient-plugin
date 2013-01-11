@@ -16,16 +16,26 @@
 
 package griffon.plugins.wsclient;
 
-import griffon.util.CallableWithArgs;
-import groovy.lang.Closure;
+import groovyx.net.ws.WSClient;
 
 import java.util.Map;
 
 /**
  * @author Andres Almiray
  */
-public interface WsclientProvider {
-    <R> R withWs(Map<String, Object> params, Closure<R> closure);
+public class DefaultWsclientProvider extends AbstractWsclientProvider {
+    private static final DefaultWsclientProvider INSTANCE;
 
-    <R> R withWs(Map<String, Object> params, CallableWithArgs<R> callable);
+    static {
+        INSTANCE = new DefaultWsclientProvider();
+    }
+
+    public static DefaultWsclientProvider getInstance() {
+        return INSTANCE;
+    }
+
+    @Override
+    protected WSClient getWsclient(Map<String, Object> params) {
+        return WsclientHolder.getInstance().fetchWsclient(params);
+    }
 }

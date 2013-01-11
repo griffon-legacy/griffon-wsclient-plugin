@@ -24,8 +24,22 @@ import java.util.Map;
 /**
  * @author Andres Almiray
  */
-public interface WsclientProvider {
-    <R> R withWs(Map<String, Object> params, Closure<R> closure);
+public class WsclientContributionAdapter implements WsclientContributionHandler {
+    private WsclientProvider provider = DefaultWsclientProvider.getInstance();
 
-    <R> R withWs(Map<String, Object> params, CallableWithArgs<R> callable);
+    public void setWsclientProvider(WsclientProvider provider) {
+        this.provider = provider != null ? provider : DefaultWsclientProvider.getInstance();
+    }
+
+    public WsclientProvider getWsclientProvider() {
+        return provider;
+    }
+
+    public <R> R withWs(Map<String, Object> params, Closure<R> closure) {
+        return provider.withWs(params, closure);
+    }
+
+    public <R> R withWs(Map<String, Object> params, CallableWithArgs<R> callable) {
+        return provider.withWs(params, callable);
+    }
 }
