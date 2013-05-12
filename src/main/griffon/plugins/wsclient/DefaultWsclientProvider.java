@@ -34,6 +34,8 @@ public class DefaultWsclientProvider extends AbstractWsclientProvider {
         return INSTANCE;
     }
 
+    private DefaultWsclientProvider() {}
+
     @Override
     protected WSClient getWsclient(Map<String, Object> params) {
         return WsclientHolder.getInstance().fetchWsclient(params);

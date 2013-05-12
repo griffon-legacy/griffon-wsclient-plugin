@@ -34,11 +34,9 @@ class WsclientHolder {
         INSTANCE
     }
 
+    private WsclientHolder() {}
+
     private final Map<String, WSClient> CLIENTS = new ConcurrentHashMap<String, WSClient>()
-
-    private WsclientHolder() {
-
-    }
 
     String[] getWsclientIds() {
         List<String> ids = []
